@@ -47,6 +47,18 @@ static DEV_INLINE int COMP_PROB(PROB_t x, PROB_t y)
 	}
 }
 
+//ÐÂ
+//addition of probability
+static PROB_t ADD_PROB (PROB_t a, PROB_t b) {
+	if (a < b) {
+		auto c = a;
+		a = b;
+		b = c;
+	}
+	PROB_t value = log2(1 + pow(2, b - a)) + a;
+	return value;
+}
+
 //multiplication of probability
 static DEV_INLINE void MUL_PROB(PROB_t * out, PROB_t in1, PROB_t in2)
 {
@@ -148,6 +160,8 @@ extern DC_I_PROB_t		*** DC_SBOXES_I_PROB_FIXED_O;
 extern SBOX_O_CNT_t		**	NUM_I_WITH_NONZERO_PROB;
 extern SBOX_O_CNT_t		**	NUM_I_WITH_MAX_PROB;
 extern DC_I_O_PROB_t	**	DC_SBOXES_I_O_PROB_FIXED_O;
+extern DC_I_O_PROB_t    **  DC_SBOXES_I_O_PROB_FIXED_I;  //ÐÂ
+extern PROB_t			*   SBOX_DDT;  //ÐÂ
 extern PROB_t				DC_1ROUND_MAX_PROB;
 extern PROB_t			*	DC_BOUNDS_ONLY_WITH_MAX_PROB;
 extern PROB_t			*	DC_BOUNDS;

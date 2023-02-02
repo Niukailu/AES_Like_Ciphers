@@ -497,7 +497,8 @@ void SPN_Best_LC_Corr_Search(CORR_t * corr_rst, BLK_CIPHER_INFO_t * ci, CNT_t se
 	}
 
 	//Set the bounds till rounds which we want
-	for (round_idx = 1; round_idx <= (CNT_t)max(set_round, 1); round_idx++)
+	CNT_t true_round = set_round > 1 ? set_round : 1;
+	for (round_idx = 1; round_idx <= true_round; round_idx++)
 	{
 		if (Verbose_Check(VERBOSE, VV_PROGRESS) == TRUE)
 		{
@@ -514,7 +515,8 @@ void SPN_Best_LC_Corr_Search(CORR_t * corr_rst, BLK_CIPHER_INFO_t * ci, CNT_t se
 
 
 	//Start searching
-	for (round_idx = max(set_round, 1) + 1; round_idx <= target_round; round_idx++)
+	true_round = set_round > 1 ? set_round : 1;
+	for (round_idx = true_round + 1; round_idx <= target_round; round_idx++)
 	{
 		FLAG_t first_trial_flag;
 

@@ -1,10 +1,22 @@
+
 #include "astbb.h"
 #include "dif_prob.h"
 #include "active_map.h"
 #include "printout.h"
+#include "diff_mid_match.h"
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
+#include <map>
+#include <string>
+
+//��
+/*Global Variables*/
+std::map<std::string, std::map<std::string, PROB_t>> half_trails;
+std::vector<RoadsByActive>* classified_left_roads;
+CNT_t target_Counter = 1 << 20;
+CNT_t mid_state_active_num;
+clock_t find_start;
 
 /*Variables only for the current c code region*/
 static char ALG_NAME[256] = { 0, };
@@ -47,6 +59,15 @@ void SPN_Best_Dif_MiddleSubRound(CNT_t i, CNT_t j, ACTIVE_MAP_t A, PROB_t Wbef);
 void SPN_Best_Dif_LastRound(PROB_t RWbef);
 void SPN_Best_Dif_LastSubRound(CNT_t j, ACTIVE_MAP_t A, PROB_t Wbef);
 
+//��
+std::string IntToStr(uint32_t word) { //����Ե�ǰʵ���GIFT64����(ÿ��S��4-bits)�����������
+	std::string res = "";
+	char hex;
+	if (word < 10) hex = '0' + word;
+	else hex = 'A' + (word - 10);
+	res += hex;
+	return res;
+}
 
 #if defined OUR_PC1
 
@@ -454,6 +475,10 @@ static DEV_INLINE CNT_t Prob_Next_Round_Lower_Bound(PROB_t * pred, CNT_t i, CNT_
 */
 void SPN_Best_DC_Prob_Search(PROB_t * prob_rst, BLK_CIPHER_INFO_t * ci, CNT_t set_round, CNT_t target_round, UFLAG_t verbose)
 {
+	//��
+	CNT_t real_target_round = target_round;
+	target_round = (target_round + 1) / 2;
+
 	CNT_t round_idx;
 
 
@@ -463,6 +488,9 @@ void SPN_Best_DC_Prob_Search(PROB_t * prob_rst, BLK_CIPHER_INFO_t * ci, CNT_t se
 	NUM_DIFF_IN_A_STATE		= ci->num_word_in_a_state;
 	SBOX_I_WORD_BIT_SIZE	= ci->sbox_i_word_bit_size;
 	SBOX_O_WORD_BIT_SIZE	= ci->sbox_o_word_bit_size;
+	//��
+	mid_state_active_num    = NUM_SBOX_IN_A_STATE / 4;
+
 	SBOX_I_CARDINALITY		= 1 << SBOX_I_WORD_BIT_SIZE;
 	SBOX_O_CARDINALITY		= 1 << SBOX_O_WORD_BIT_SIZE;
 	Diffusion				= ci->Diffusion;
@@ -494,7 +522,8 @@ void SPN_Best_DC_Prob_Search(PROB_t * prob_rst, BLK_CIPHER_INFO_t * ci, CNT_t se
 	}
 
 	//Set the bounds till rounds which we want
-	for (round_idx = 1; round_idx <= (CNT_t)max(set_round, 1); round_idx++)
+	CNT_t true_round = set_round > 1 ? set_round : 1;
+	for (round_idx = 1; round_idx <= true_round; round_idx++)
 	{
 		if (Verbose_Check(VERBOSE, VV_PROGRESS) == TRUE)
 		{
@@ -502,9 +531,12 @@ void SPN_Best_DC_Prob_Search(PROB_t * prob_rst, BLK_CIPHER_INFO_t * ci, CNT_t se
 		}
 	}
 
+	//��
+	find_start = clock(); //��¼��ʼʱ��
 
 	//Start searching
-	for (round_idx = max(set_round, 1) + 1; round_idx <= target_round; round_idx++)
+	true_round = set_round > 1 ? set_round : 1;
+	for (round_idx = true_round + 1; round_idx <= target_round; round_idx++)
 	{
 		FLAG_t first_trial_flag;
 
@@ -567,12 +599,16 @@ void SPN_Best_DC_Prob_Search(PROB_t * prob_rst, BLK_CIPHER_INFO_t * ci, CNT_t se
 		{
 			CHECK_CLK = clock();
 			CHECK_TIME = time(NULL);
-			printf("==End   [%2d]-Round With Bound 2^{%0.4lf}[takes %lld secs(%0.4lf secs)]==\n", round_idx, DC_BOUNDS[round_idx], CHECK_TIME - START_TIME, (double)(CHECK_CLK - START_CLK)/ CLOCKS_PER_SEC);
+			//printf("==End   [%2d]-Round With Bound 2^{%0.4lf}[takes %lld secs(%0.4lf secs)]==\n", round_idx, DC_BOUNDS[round_idx], CHECK_TIME - START_TIME, (double)(CHECK_CLK - START_CLK)/ CLOCKS_PER_SEC);
 		}
 
 		if (Verbose_Check(VERBOSE, VV_LAST_UPDATE_TRAIL) == TRUE)
 		{
-			Print_DC_Trail(DC_TRAIL_FOR_OUT, round_idx, SBOX_I_WORD_BIT_SIZE, SBOX_O_WORD_BIT_SIZE, NUM_SBOX_IN_A_STATE);
+			//��
+			if (round_idx == target_round) {
+				//Print_DC_Trail(DC_TRAIL_FOR_OUT, round_idx, SBOX_I_WORD_BIT_SIZE, SBOX_O_WORD_BIT_SIZE, NUM_SBOX_IN_A_STATE);
+			}
+			
 		}
 
 		if (Verbose_Check(VERBOSE, VV_FILE_PRINT) == TRUE)
@@ -597,6 +633,24 @@ void SPN_Best_DC_Prob_Search(PROB_t * prob_rst, BLK_CIPHER_INFO_t * ci, CNT_t se
 		}
 
 	}//EVERY ROUND FINISHES
+
+	//��
+	/*char filename[256];
+	sprintf(filename, "%s_Best_Differential_Trail_%dR.txt", ALG_NAME, real_target_round);
+	FILE* fileptr = fopen(filename, "w");
+
+	for (auto& half_trail : half_trails) {
+		int size = half_trail.second.size();
+		fprintf(fileptr, "One left head [%s] corresponds to [%d] mids\n", half_trail.first.c_str(), size);
+	}
+	fprintf(fileptr, "===================================================================\n\n");*/
+
+	//��
+	//Ԥ����
+	// ����ԾS�и�����1-16����洢
+	classified_left_roads = new std::vector<RoadsByActive>[NUM_SBOX_IN_A_STATE + 1];
+	assign_values(SBOX_O_WORD_BIT_SIZE, NUM_SBOX_IN_A_STATE);
+	preTreat_left_trails(half_trails, classified_left_roads);
 
 	if (Verbose_Check(VERBOSE, VV_LAST_RESULT) == TRUE)
 	{
@@ -941,60 +995,98 @@ void SPN_Best_Dif_LastSubRound(CNT_t j, ACTIVE_MAP_t A, PROB_t Wbef)
 	PROB_t       Wpred1;
 	CNT_t		 j_nxt;
 
-	*Pn_j = DC_SBOXES_O_PROB_FIXED_I[j][Xn_j][0].p; //max prob with fixed in
-	MUL_PROB(&Wdet, Wbef, *Pn_j);
+	//��
+	SBOX_O_CNT_t _i_j;
+	for (_i_j = 0; _i_j < NUM_O_WITH_NONZERO_PROB[j][Xn_j] && DONE_FLAG != TRUE; _i_j++) {
 
-	//Pruning (PC-1)
-	Prob_Fill_Undertermined(&Wrm, j, DC_TRAIL_IN_PROGRESS[CUR_TARGET_ROUND].sub_i, A);
-	MUL_PROB(&Wpred1, Wdet, Wrm);
-	if (Prob_Bound_Checker(CUR_TARGET_ROUND, Wpred1) == EXCEED_BOUND)
-		return; 
+		*Pn_j = DC_SBOXES_O_PROB_FIXED_I[j][Xn_j][_i_j].p;
 
-	//store the current out word
-	*Yn_j = DC_SBOXES_O_PROB_FIXED_I[j][Xn_j][0].o;
+		MUL_PROB(&Wdet, Wbef, *Pn_j);
 
-	//get next active_word
-	j_nxt = Next_Active_Word(j, A, NUM_SBOX_IN_A_STATE);
+		//Pruning (PC-1)
+		Prob_Fill_Undertermined(&Wrm, j, DC_TRAIL_IN_PROGRESS[CUR_TARGET_ROUND].sub_i, A);
+		MUL_PROB(&Wpred1, Wdet, Wrm);
+		if (Prob_Bound_Checker(CUR_TARGET_ROUND, Wpred1) == EXCEED_BOUND)
+			return;
 
-	if (j_nxt != THIS_IS_THE_LAST) //when this word is not the last word  
-	{
-		//Move to next word
-		SPN_Best_Dif_LastSubRound(j_nxt, A, Wdet);
-	}
-	else //when this word is the last word
-	{
-		TOUCH_THE_LEAF_FLAG = TRUE;
-		DONE_FLAG = TRUE;
+		//store the current out word
+		*Yn_j = DC_SBOXES_O_PROB_FIXED_I[j][Xn_j][_i_j].o;
 
-		//update Progress bound
-		DC_BOUND_IN_PROGRESS = Wdet;
+		//get next active_word
+		j_nxt = Next_Active_Word(j, A, NUM_SBOX_IN_A_STATE);
 
-		//print
-		if (Verbose_Check(VERBOSE, VV_UPDATE_BOUND | VV_UPDATE_BOUND_TRAIL) == TRUE)
+		if (j_nxt != THIS_IS_THE_LAST) //when this word is not the last word  
 		{
-			CHECK_CLK = clock();
-			CHECK_TIME = time(NULL);
-			printf("--New Bound!! 2^{%0.4lf}[takes %lld secs(%0.4lf secs)]\n", DC_BOUND_IN_PROGRESS, CHECK_TIME - START_TIME, (double)(CHECK_CLK - START_CLK) / CLOCKS_PER_SEC);
+			//Move to next word
+			SPN_Best_Dif_LastSubRound(j_nxt, A, Wdet);
 		}
-
-		if (Verbose_Check(VERBOSE, VV_UPDATE_BOUND_TRAIL) == TRUE)
+		else //when this word is the last word
 		{
-			CNT_t __FF__;
-			for (__FF__ = 1; __FF__ <= CUR_TARGET_ROUND; __FF__++)
-			{
-				Diffusion(DC_TRAIL_IN_PROGRESS[__FF__].dif_o, DC_TRAIL_IN_PROGRESS[__FF__].sub_o);
+			//��
+			if (CUR_TARGET_ROUND != WHOLE_TARGET_ROUND) {
+				TOUCH_THE_LEAF_FLAG = TRUE;
+				DONE_FLAG = TRUE;
 			}
-			Print_DC_Trail(DC_TRAIL_IN_PROGRESS, CUR_TARGET_ROUND, SBOX_I_WORD_BIT_SIZE, SBOX_O_WORD_BIT_SIZE, NUM_SBOX_IN_A_STATE);
+			else {  //��
+				if (Verbose_Check(VERBOSE, VV_FILE_PRINT | VV_LAST_UPDATE_TRAIL) == TRUE)
+				{
+					CNT_t __FF__;
+					Copy_DC_Trail(DC_TRAIL_FOR_OUT, DC_TRAIL_IN_PROGRESS, CUR_TARGET_ROUND, NUM_SBOX_IN_A_STATE);
+					for (__FF__ = 1; __FF__ <= CUR_TARGET_ROUND; __FF__++)
+					{
+						Diffusion(DC_TRAIL_FOR_OUT[__FF__].dif_o, DC_TRAIL_FOR_OUT[__FF__].sub_o);
+					}
+				}
+
+				CNT_t active_num;
+				ACTIVE_MAP_t last_round_active_map = Compute_Active_Map_From_State(DC_TRAIL_FOR_OUT[CUR_TARGET_ROUND].dif_o, NUM_SBOX_IN_A_STATE);
+				active_num = (CNT_t)get_word_hw(last_round_active_map);
+				if (active_num <= mid_state_active_num) {
+					--target_Counter;
+					//��
+					//����map
+					std::string left_head = "";
+					std::string left_tail = "";
+					CNT_t __FF__;
+					for (__FF__ = 0; __FF__ < NUM_SBOX_IN_A_STATE; __FF__++)
+					{
+						left_head += IntToStr(DC_TRAIL_FOR_OUT[1].sub_i[__FF__]);
+						left_tail += IntToStr(DC_TRAIL_FOR_OUT[WHOLE_TARGET_ROUND].dif_o[__FF__]);
+					}
+					half_trails[left_head][left_tail] = Wdet;
+				}
+
+				if (target_Counter == 0) DONE_FLAG = TRUE;
+			}
+
+
+			//update Progress bound
+			//��
+			if (CUR_TARGET_ROUND != WHOLE_TARGET_ROUND) DC_BOUND_IN_PROGRESS = Wdet;
+
+
+			//print
+			if (Verbose_Check(VERBOSE, VV_UPDATE_BOUND | VV_UPDATE_BOUND_TRAIL) == TRUE)
+			{
+				CHECK_CLK = clock();
+				CHECK_TIME = time(NULL);
+				printf("--New Bound!! 2^{%0.4lf}[takes %lld secs(%0.4lf secs)]\n", DC_BOUND_IN_PROGRESS, CHECK_TIME - START_TIME, (double)(CHECK_CLK - START_CLK) / CLOCKS_PER_SEC);
+			}
+
+			if (Verbose_Check(VERBOSE, VV_UPDATE_BOUND_TRAIL) == TRUE)
+			{
+				CNT_t __FF__;
+				for (__FF__ = 1; __FF__ <= CUR_TARGET_ROUND; __FF__++)
+				{
+					Diffusion(DC_TRAIL_IN_PROGRESS[__FF__].dif_o, DC_TRAIL_IN_PROGRESS[__FF__].sub_o);
+				}
+				Print_DC_Trail(DC_TRAIL_IN_PROGRESS, CUR_TARGET_ROUND, SBOX_I_WORD_BIT_SIZE, SBOX_O_WORD_BIT_SIZE, NUM_SBOX_IN_A_STATE);
+			}
+
+
+
 		}
 
-		if (Verbose_Check(VERBOSE, VV_FILE_PRINT | VV_LAST_UPDATE_TRAIL) == TRUE)
-		{
-			CNT_t __FF__;
-			Copy_DC_Trail(DC_TRAIL_FOR_OUT, DC_TRAIL_IN_PROGRESS, CUR_TARGET_ROUND, NUM_SBOX_IN_A_STATE);
-			for (__FF__ = 1; __FF__ <= CUR_TARGET_ROUND; __FF__++)
-			{
-				Diffusion(DC_TRAIL_FOR_OUT[__FF__].dif_o, DC_TRAIL_FOR_OUT[__FF__].sub_o);
-			}
-		}
 	}
+	
 }

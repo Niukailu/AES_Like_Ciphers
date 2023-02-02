@@ -306,8 +306,6 @@ extern "C" {
 	#define ROR32(_32bit_ , i) (((_32bit_) >> (i)) | ((_32bit_) << (32 - ((i)%32))))
 	#define ROL64(_64bit_ , i) (((_64bit_) << (i)) | ((_64bit_) >> (64 - ((i)%64))))
 	#define ROR64(_64bit_ , i) (((_64bit_) >> (i)) | ((_64bit_) << (64 - ((i)%64))))
-	#define max(a,b) (((a) > (b)) ? (a) : (b))
-	#define min(a,b) (((a) > (b)) ? (b) : (a))
 	#endif
 
 	#if defined __GNUC__ && _DEBUG
@@ -441,6 +439,9 @@ extern "C" {
 
 	//Step3
 	DEV_DEFINE void SPN_Best_DC_Prob_Search(PROB_t * prob_rst, BLK_CIPHER_INFO_t * ci, CNT_t set_round, CNT_t target_round, UFLAG_t verbose);
+	//��
+	DEV_DEFINE void Inv_SPN_Best_DC_Prob_Search(PROB_t* prob_rst, BLK_CIPHER_INFO_t* ci, CNT_t set_round, CNT_t target_round, UFLAG_t verbose);
+	
 	DEV_DEFINE void SPN_Best_LC_Corr_Search(CORR_t * corr_rst, BLK_CIPHER_INFO_t * ci, CNT_t set_round, CNT_t target_round, UFLAG_t verbose);
 
 

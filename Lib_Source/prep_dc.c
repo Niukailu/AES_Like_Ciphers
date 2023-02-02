@@ -2,6 +2,7 @@
 #include "dif_prob.h"
 #include <string.h>
 
+
 /*Global Variables*/
 DC_I_O_PROB_t	**	DC_SBOXES_I_O_PROB = NULL;
 NUM_t			*	NUM_I_O_WITH_NONZERO_PROB = NULL;
@@ -13,6 +14,8 @@ DC_I_PROB_t		*** DC_SBOXES_I_PROB_FIXED_O = NULL;
 SBOX_O_CNT_t	**	NUM_I_WITH_NONZERO_PROB = NULL;
 SBOX_O_CNT_t	**	NUM_I_WITH_MAX_PROB = NULL;
 DC_I_O_PROB_t	**	DC_SBOXES_I_O_PROB_FIXED_O = NULL; //this table is very special!
+DC_I_O_PROB_t   **  DC_SBOXES_I_O_PROB_FIXED_I = NULL; //新 
+PROB_t			*   SBOX_DDT = NULL;    //新
 PROB_t				DC_1ROUND_MAX_PROB;
 PROB_t			*	DC_BOUNDS_ONLY_WITH_MAX_PROB; //for convenience, the first element is always 0 and is not used
 PROB_t			*	DC_BOUNDS; //for convenience, the first element is always 0 and is not used
@@ -28,6 +31,8 @@ FLAG_t			*	FIX_IN_MAX_PROB_EQUAL = NULL;
 FLAG_t				FIX_IN_MAX_PROB_EQUAL_EVERY_SBOX = TRUE;
 FLAG_t			*	FIX_OU_MAX_PROB_EQUAL = NULL;
 FLAG_t				FIX_OU_MAX_PROB_EQUAL_EVERY_SBOX = TRUE;
+
+
 /************************************************/
 
 
@@ -136,6 +141,17 @@ void SPN_Prep_Info_For_DC_With_Prob_DDT(BLK_CIPHER_INFO_t * ci, PROB_t ** prob_d
 		}
 		//sorting I_O_PROB with fixed output
 		qsort((void*)DC_SBOXES_I_O_PROB_FIXED_O[sbox_idx], (size_t)SBOX_O_CARDINALITY, sizeof(DC_I_O_PROB_t), descending_IOP);
+		
+		//新
+		//Get Each maximum I_O_PROB with fixed input
+		for (delta_i = 0; delta_i < SBOX_I_CARDINALITY; delta_i++)
+		{
+			DC_SBOXES_I_O_PROB_FIXED_I[sbox_idx][delta_i].o = DC_SBOXES_O_PROB_FIXED_I[sbox_idx][delta_i][0].o;
+			DC_SBOXES_I_O_PROB_FIXED_I[sbox_idx][delta_i].i = (SBOX_I_WRD_t)delta_i;
+			DC_SBOXES_I_O_PROB_FIXED_I[sbox_idx][delta_i].p = DC_SBOXES_O_PROB_FIXED_I[sbox_idx][delta_i][0].p;
+		}
+		//sorting I_O_PROB with fixed input
+		qsort((void*)DC_SBOXES_I_O_PROB_FIXED_I[sbox_idx], (size_t)SBOX_I_CARDINALITY, sizeof(DC_I_O_PROB_t), descending_IOP);
 	}
 
 
@@ -346,11 +362,16 @@ void SPN_Prep_Info_For_DC(BLK_CIPHER_INFO_t * ci)
 
 	//allocate memory for DDTs and then compute each DDT
 	PROB_DDTs = (PROB_t**)malloc(sizeof(PROB_t *) * (size_t)NUM_SBOX_IN_A_STATE);
+	//新
+	SBOX_DDT = (PROB_t*)malloc(((size_t)1 << (SBOX_I_WORD_BIT_SIZE + SBOX_O_WORD_BIT_SIZE)) * sizeof(PROB_t));
+
 	for (sbox_idx = 0; sbox_idx < NUM_SBOX_IN_A_STATE; sbox_idx++)
 	{
 		PROB_DDTs[sbox_idx] = (PROB_t*)malloc(((size_t)1<<(SBOX_I_WORD_BIT_SIZE + SBOX_O_WORD_BIT_SIZE)) * sizeof(PROB_t));
 		Compute_Prob_DDT(PROB_DDTs[sbox_idx], &(SBOXES[sbox_idx * SBOX_I_CARDINALITY]), SBOX_I_WORD_BIT_SIZE, SBOX_O_WORD_BIT_SIZE);
 	}
+	//新
+	Compute_Prob_DDT(SBOX_DDT, &(SBOXES[0 * SBOX_I_CARDINALITY]), SBOX_I_WORD_BIT_SIZE, SBOX_O_WORD_BIT_SIZE);
 
 	SPN_Prep_Info_For_DC_With_Prob_DDT(ci, PROB_DDTs);
 
@@ -463,6 +484,14 @@ void DC_Prep_Memory(BLK_CIPHER_INFO_t * ci)
 		}
 		free(DC_SBOXES_I_O_PROB_FIXED_O);
 
+		//新
+		//about I_O_PROB with a fixed input
+		for (sbox_idx = 0; sbox_idx < bf_info.num_sboxes; sbox_idx++)
+		{
+			free(DC_SBOXES_I_O_PROB_FIXED_I[sbox_idx]);
+		}
+		free(DC_SBOXES_I_O_PROB_FIXED_I);
+
 		//about FIX_IN_MAX_PROB_EQUAL
 		free(FIX_IN_MAX_PROB_EQUAL);
 		//about FIX_OU_MAX_PROB_EQUAL
@@ -542,6 +571,14 @@ void DC_Prep_Memory(BLK_CIPHER_INFO_t * ci)
 	for (sbox_idx = 0; sbox_idx < ci->num_word_in_a_state; sbox_idx++)
 	{
 		DC_SBOXES_I_O_PROB_FIXED_O[sbox_idx] = (DC_I_O_PROB_t*)malloc(sizeof(DC_I_O_PROB_t)*((size_t)sbox_o_cardinality));
+	}
+
+	//新
+	//about I_O_PROB with a fixed input
+	DC_SBOXES_I_O_PROB_FIXED_I = (DC_I_O_PROB_t**)malloc(sizeof(DC_I_O_PROB_t*) * (size_t)(ci->num_word_in_a_state));
+	for (sbox_idx = 0; sbox_idx < ci->num_word_in_a_state; sbox_idx++)
+	{
+		DC_SBOXES_I_O_PROB_FIXED_I[sbox_idx] = (DC_I_O_PROB_t*)malloc(sizeof(DC_I_O_PROB_t) * ((size_t)sbox_i_cardinality));
 	}
 
 	//about FIX_IN_MAX_PROB_EQUAL
@@ -628,6 +665,7 @@ void Compute_Prob_DDT(PROB_t * prob_ddt, SBOX_O_WRD_t * sbox, BIT_SIZE_t sbox_in
 	DDT = (DDT_ENTRY_t*)malloc(((size_t)1 << (sbox_in_bitsz + sbox_out_bitsz)) * sizeof(DDT_ENTRY_t));
 
 	Compute_DDT(DDT, sbox, sbox_in_bitsz, sbox_out_bitsz);
+
 	for (x = 0; x <= max_in; x++)
 	{
 		for (y = 0; y <= max_out; y++)

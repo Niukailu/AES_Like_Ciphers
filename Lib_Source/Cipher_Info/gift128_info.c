@@ -304,6 +304,8 @@ void PY_GIFT128_DC_Prob_Searching(PROB_t * rst, CNT_t num_round, UFLAG_t verbose
 	SPN_Prep_Info_For_DC(&GIFT128);
 	Use_Predefined_1Round_Active_Maps_GIFT128(&GIFT128);
 	SPN_Best_DC_Prob_Search(rst, &GIFT128, 0, num_round, verbose);
+	//ÐÂ
+	Inv_SPN_Best_DC_Prob_Search(rst, &GIFT128, 0, num_round, verbose);
 }
 
 void PY_GIFT128_LC_Corr_Searching(CORR_t * rst, CNT_t num_round, UFLAG_t verbose)

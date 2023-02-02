@@ -354,6 +354,9 @@ void PY_GIFT64_DC_Prob_Searching(PROB_t * rst, CNT_t num_round, UFLAG_t verbose)
 	Use_Predefined_1Round_Active_Maps(&GIFT64);
 #endif
 	SPN_Best_DC_Prob_Search(rst, &GIFT64, 0, num_round, verbose);
+	//ÐÂ
+	Inv_SPN_Best_DC_Prob_Search(rst, &GIFT64, 0, num_round, verbose); 
+	
 }
 
 void PY_GIFT64_LC_Corr_Searching(CORR_t * rst, CNT_t num_round, UFLAG_t verbose)
