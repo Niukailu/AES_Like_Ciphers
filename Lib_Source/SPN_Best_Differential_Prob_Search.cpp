@@ -10,7 +10,7 @@
 #include <map>
 #include <string>
 
-//��
+//新
 /*Global Variables*/
 std::map<std::string, std::map<std::string, PROB_t>> half_trails;
 std::vector<RoadsByActive>* classified_left_roads;
